@@ -3,10 +3,11 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import zipfile
 from typing import Tuple, List
 
 
-def copy_files_from_repo(repo_url: str, branch: str, web_root: str, repo_target_path_pairs: List[Tuple[str, str]]):
+def copy_files_from_repo(repo_url: str, branch: str, web_root: str, repo_target_path_pairs: List[Tuple[str, str]], as_zip):
     """
     does `git clone -n --depth=1 REPO_URL`
     For each (repo_path, target_path) pair
@@ -22,23 +23,29 @@ def copy_files_from_repo(repo_url: str, branch: str, web_root: str, repo_target_
     """
 
     try:
-
         with tempfile.TemporaryDirectory(prefix='drojf_umineko_deploy') as repo_clone_path:
             print(f"Will clone [{repo_url}] into [{repo_clone_path}]")
 
             # git clone repo to specified folder. give a unique name to avoid conflicting with other files
             subprocess.call(['git', 'clone', '-n', '--depth=1', f'--branch={branch}', repo_url, repo_clone_path])
 
-            # checkout all the repo paths
-            for file_in_repo_path, _ in repo_target_path_pairs:
+            for file_in_repo_path, rel_target_path in repo_target_path_pairs:
+                # checkout all the repo paths
                 subprocess.call(['git', 'checkout', 'HEAD', file_in_repo_path], cwd=repo_clone_path)
 
-            # move
-            for file_in_repo_path, rel_target_path in repo_target_path_pairs:
+                # calculate the correct repo path dep on if 'as_zip' is enabled
+                original_source_path = os.path.join(repo_clone_path, file_in_repo_path)
+                absolute_source_path = original_source_path + '.zip' if as_zip else ''
+
+                #  zip each path if necessary
+                if as_zip:
+                    print(f'Zipping {original_source_path} -> {absolute_source_path}')
+                    with zipfile.ZipFile(absolute_source_path, 'w', compression=zipfile.ZIP_LZMA) as myzip:
+                        myzip.write(original_source_path, arcname=os.path.basename(absolute_source_path))
+
+                # delete the target_path
                 target_path = os.path.join(web_root, rel_target_path)
-                absolute_file_in_repo_path = os.path.join(repo_clone_path, file_in_repo_path)
-                # delete target_path
-                print(f'Moving {absolute_file_in_repo_path} -> {target_path}')
+                print(f'Deleting {target_path}')
                 if os.path.exists(target_path):
                     os.remove(target_path)
 
@@ -46,7 +53,8 @@ def copy_files_from_repo(repo_url: str, branch: str, web_root: str, repo_target_
                 os.makedirs(os.path.dirname(target_path), exist_ok=True)
 
                 # move file from repo to destination
-                shutil.move(absolute_file_in_repo_path, target_path)
+                print(f'Moving {absolute_source_path} -> {target_path}')
+                shutil.move(absolute_source_path, target_path)
 
     except PermissionError as permission_error:
         if sys.platform.startswith('win32') and 'WinError' in str(permission_error):
@@ -72,24 +80,24 @@ print(f"Web folder: [{web_folder}] Game: [{which_game}]")
 if which_game == 'question':
     # Umineko Question 1080p Patch
     copy_files_from_repo(r'https://github.com/07th-mod/umineko-question.git', 'master', web_folder, [
-        (r'InDevelopment/ManualUpdates/0.utf', r'Beato/script-full/0.utf'),
-    ])
+        (r'InDevelopment/ManualUpdates/0.utf', r'Beato/script-full.zip'),
+    ], as_zip=True)
 
     # Umineko Question Voice Only Patch
     copy_files_from_repo(r'https://github.com/07th-mod/umineko-question.git', 'voice_only', web_folder, [
-        (r'InDevelopment/ManualUpdates/0.utf', r'Beato/script-voice-only/0.utf'),
-    ])
+        (r'InDevelopment/ManualUpdates/0.utf', r'Beato/script-voice-only.zip'),
+    ], as_zip=True)
 elif which_game == 'answer':
     # Umineko Answer Full and Voice Only Patch
     copy_files_from_repo(r'https://github.com/07th-mod/umineko-answer.git', 'master', web_folder, [
-        (r'0.utf', r'Bern/script-full/0.utf'),
-        (r'voices-only/0.utf', r'Bern/script-voice-only/0.utf'),
-    ])
+        (r'0.utf', r'Bern/script-full.zip'),
+        (r'voices-only/0.utf', r'Bern/script-voice-only.zip'),
+    ], as_zip=True)
 
     # Umineko Answer ADV Mode Patch
     copy_files_from_repo(r'https://github.com/07th-mod/umineko-answer.git', 'adv_mode', web_folder, [
-        (r'0.utf', r'Bern/script-adv-mode/0.utf'),
-    ])
+        (r'0.utf', r'Bern/script-adv-mode.zip'),
+    ], as_zip=True)
 else:
     error_exit()
 
