@@ -6,7 +6,7 @@ import tempfile
 from typing import Tuple, List
 
 
-def copy_files_from_repo(repo_url: str, branch: str, repo_target_path_pairs: List[Tuple[str, str]]):
+def copy_files_from_repo(repo_url: str, branch: str, web_root: str, repo_target_path_pairs: List[Tuple[str, str]]):
     """
     does `git clone -n --depth=1 REPO_URL`
     For each (repo_path, target_path) pair
@@ -14,6 +14,7 @@ def copy_files_from_repo(repo_url: str, branch: str, repo_target_path_pairs: Lis
         - deletes target_path if it exists (must be a file)
         - moves the repo_path to target_path (must be a file)
     deletes the repo
+    :param web_root:
     :param branch:
     :param repo_url:
     :param repo_target_path_pairs: pair of RELATIVE repo path to ABSOLUTE output paths (if output path is relative, will be relative to current folder)
@@ -25,7 +26,7 @@ def copy_files_from_repo(repo_url: str, branch: str, repo_target_path_pairs: Lis
         with tempfile.TemporaryDirectory(prefix='drojf_umineko_deploy') as repo_clone_path:
             print(f"Will clone [{repo_url}] into [{repo_clone_path}]")
 
-            # # git clone repo to specified folder. give a unique name to avoid conflicting with other files
+            # git clone repo to specified folder. give a unique name to avoid conflicting with other files
             subprocess.call(['git', 'clone', '-n', '--depth=1', f'--branch={branch}', repo_url, repo_clone_path])
 
             # checkout all the repo paths
@@ -33,7 +34,8 @@ def copy_files_from_repo(repo_url: str, branch: str, repo_target_path_pairs: Lis
                 subprocess.call(['git', 'checkout', 'HEAD', file_in_repo_path], cwd=repo_clone_path)
 
             # move
-            for file_in_repo_path, target_path in repo_target_path_pairs:
+            for file_in_repo_path, rel_target_path in repo_target_path_pairs:
+                target_path = os.path.join(web_root, rel_target_path)
                 absolute_file_in_repo_path = os.path.join(repo_clone_path, file_in_repo_path)
                 # delete target_path
                 print(f'Moving {absolute_file_in_repo_path} -> {target_path}')
@@ -54,25 +56,41 @@ def copy_files_from_repo(repo_url: str, branch: str, repo_target_path_pairs: Lis
             raise permission_error
 
 
-# Umineko Question 1080p Patch
-copy_files_from_repo(r'https://github.com/07th-mod/umineko-question.git', 'master', [
-    (r'InDevelopment/ManualUpdates/0.utf', r'umineko-question/full/0.utf'),
-])
+def error_exit():
+    print("ERROR: need at least 2 arguments. First argument is web folder root, second argument is 'question' or 'answer' to determine which repo to update")
+    exit(-1)
 
-# Umineko Question Voice Only Patch
-copy_files_from_repo(r'https://github.com/07th-mod/umineko-question.git', 'voice_only', [
-    (r'InDevelopment/ManualUpdates/0.utf', r'umineko-question/voice-only/0.utf'),
-])
 
-# Umineko Answer Full and Voice Only Patch
-copy_files_from_repo(r'https://github.com/07th-mod/umineko-answer.git', 'master', [
-    (r'0.utf', r'umineko-answer/full/0.utf'),
-    (r'voices-only/0.utf', r'umineko-answer/voice-only/0.utf'),
-])
+if len(sys.argv) < 3:
+    error_exit()
 
-# Umineko Answer ADV Mode Patch
-copy_files_from_repo(r'https://github.com/07th-mod/umineko-answer.git', 'adv_mode', [
-    (r'0.utf', r'umineko-answer/adv-mode/0.utf'),
-])
+web_folder = sys.argv[1] # eg r'/home/developer/web'
+which_game = sys.argv[2] # 'question' or 'answer'
+print(f"Web folder: [{web_folder}] Game: [{which_game}]")
+
+
+if which_game == 'question':
+    # Umineko Question 1080p Patch
+    copy_files_from_repo(r'https://github.com/07th-mod/umineko-question.git', 'master', web_folder, [
+        (r'InDevelopment/ManualUpdates/0.utf', r'Beato/script-full/0.utf'),
+    ])
+
+    # Umineko Question Voice Only Patch
+    copy_files_from_repo(r'https://github.com/07th-mod/umineko-question.git', 'voice_only', web_folder, [
+        (r'InDevelopment/ManualUpdates/0.utf', r'Beato/script-voice-only/0.utf'),
+    ])
+elif which_game == 'answer':
+    # Umineko Answer Full and Voice Only Patch
+    copy_files_from_repo(r'https://github.com/07th-mod/umineko-answer.git', 'master', web_folder, [
+        (r'0.utf', r'Bern/script-full/0.utf'),
+        (r'voices-only/0.utf', r'Bern/script-voice-only/0.utf'),
+    ])
+
+    # Umineko Answer ADV Mode Patch
+    copy_files_from_repo(r'https://github.com/07th-mod/umineko-answer.git', 'adv_mode', web_folder, [
+        (r'0.utf', r'Bern/script-adv-mode/0.utf'),
+    ])
+else:
+    error_exit()
 
 print("Deployment was successful!")
