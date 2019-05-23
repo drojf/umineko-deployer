@@ -8,6 +8,16 @@ import tempfile
 import zipfile
 from typing import Tuple, List
 
+def lockElseExit():
+    import fcntl
+    pid_file = '/tmp/drojf_deploy_umineko_instance.lock'
+    fp = open(pid_file, 'w')
+    try:
+        fcntl.lockf(fp, fcntl.LOCK_EX | fcntl.LOCK_NB)
+    except IOError:
+        print("Can't run script - another instance is running!")
+        sys.exit(1)
+
 def seven_zip(input_path, output_filename):
     subprocess.call(["7z", "a", output_filename, input_path])
 
@@ -82,6 +92,8 @@ web_folder = r'/home/07th-mod/web' if len(sys.argv) < 3 else sys.argv[2]
 
 print(f"Web folder: [{web_folder}] Game: [{which_game}]")
 
+if not sys.platform.startswith('win32'):
+    lockElseExit()
 
 if which_game == 'question':
     # Umineko Question 1080p Patch
