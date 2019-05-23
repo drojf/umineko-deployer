@@ -8,12 +8,11 @@ import tempfile
 import zipfile
 from typing import Tuple, List
 
-def lockElseExit():
+def lockElseExit(fp):
     import fcntl
-    pid_file = '/tmp/drojf_deploy_umineko_instance.lock'
-    fp = open(pid_file, 'w')
     try:
         fcntl.lockf(fp, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        print("Succesfully obtained lock")
     except IOError:
         print("Can't run script - another instance is running!")
         sys.exit(1)
@@ -92,8 +91,12 @@ web_folder = r'/home/07th-mod/web' if len(sys.argv) < 3 else sys.argv[2]
 
 print(f"Web folder: [{web_folder}] Game: [{which_game}]")
 
+# Try to lock the lock file - exit on failure
 if not sys.platform.startswith('win32'):
-    lockElseExit()
+    pid_file = '/tmp/drojf_deploy_umineko_instance.lock'
+    fp = open(pid_file, 'w')
+
+    lockElseExit(fp)
 
 if which_game == 'question':
     # Umineko Question 1080p Patch
