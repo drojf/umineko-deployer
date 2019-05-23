@@ -8,6 +8,8 @@ import tempfile
 import zipfile
 from typing import Tuple, List
 
+def seven_zip(input_path, output_filename):
+    subprocess.call(["7z", "a", output_filename, input_path])
 
 def copy_files_from_repo(repo_url: str, branch: str, web_root: str, repo_target_path_pairs: List[Tuple[str, str]], as_zip):
     """
@@ -42,8 +44,7 @@ def copy_files_from_repo(repo_url: str, branch: str, web_root: str, repo_target_
                 #  zip each path if necessary
                 if as_zip:
                     print(f'Zipping {original_source_path} -> {absolute_source_path}')
-                    with zipfile.ZipFile(absolute_source_path, 'w', compression=zipfile.ZIP_LZMA) as myzip:
-                        myzip.write(original_source_path, arcname=os.path.basename(absolute_source_path))
+                    seven_zip(original_source_path, absolute_source_path)
 
                 # delete the target_path
                 target_path = os.path.join(web_root, rel_target_path)
