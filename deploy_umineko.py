@@ -71,11 +71,14 @@ def error_exit():
     exit(-1)
 
 
-if len(sys.argv) < 3:
+if len(sys.argv) < 2:
     error_exit()
 
-web_folder = sys.argv[1] # eg r'/home/developer/web'
-which_game = sys.argv[2] # 'question' or 'answer'
+# 'question' or 'answer'
+which_game = sys.argv[1]
+# the web root where the files will be output to
+web_folder = r'/home/07th-mod/web' if len(sys.argv) < 3 else sys.argv[2]
+
 print(f"Web folder: [{web_folder}] Game: [{which_game}]")
 
 
