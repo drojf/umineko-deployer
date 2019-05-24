@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-
+import asyncio
 import os
 import shutil
 import subprocess
@@ -10,32 +10,6 @@ from typing import Tuple, List
 
 idChannelBotSpam = 557048243696042055
 discord_token_path = 'token.token'
-
-# TODO: bot needs to login for each message sent - should only login once, then send messages on same connection.
-def notify_by_discord(message_to_send):
-    try:
-        import discord
-
-        client = discord.Client()
-
-        @client.event
-        async def on_ready():
-            print('We have logged in as {0.user}'.format(client))
-
-            channel = client.get_channel(idChannelBotSpam)
-            if channel is not None:
-                # send notification
-                await channel.send(message_to_send)
-            else:
-                print("discord bot failed to get channel")
-
-            # logout
-            await client.logout()
-
-        client.run(pathlib.Path(discord_token_path).read_text().strip())
-    except Exception as e:
-        print(f"Failed to send bot message: {e}")
-
 
 def lockElseExit(fp):
     import fcntl
@@ -107,20 +81,53 @@ def copy_files_from_repo(repo_url: str, branch: str, web_root: str, repo_target_
 
 
 def notify_failure_and_exit(message):
-    notify_by_discord(f"Task Failed!: {message}")
     print(message)
     exit(-1)
 
+async def do_deployment(channel):
+    if len(sys.argv) < 2:
+        notify_failure_and_exit("ERROR: need at least 1 argument: 'question' or 'answer' to determine which repo to update. Optional second argument is web root.")
 
-if len(sys.argv) < 2:
-    notify_failure_and_exit("ERROR: need at least 1 argument: 'question' or 'answer' to determine which repo to update. Optional second argument is web root.")
+    # 'question' or 'answer'
+    which_game = sys.argv[1]
+    # the web root where the files will be output to
+    web_folder = r'/home/07th-mod/web' if len(sys.argv) < 3 else sys.argv[2]
 
-# 'question' or 'answer'
-which_game = sys.argv[1]
-# the web root where the files will be output to
-web_folder = r'/home/07th-mod/web' if len(sys.argv) < 3 else sys.argv[2]
+    print(f"Web folder: [{web_folder}] Game: [{which_game}]")
 
-print(f"Web folder: [{web_folder}] Game: [{which_game}]")
+    if which_game == 'question':
+        await channel.send("Umineko Question Deployment Started...")
+        # Umineko Question 1080p Patch
+        copy_files_from_repo(r'https://github.com/07th-mod/umineko-question.git', 'master', web_folder, [
+            (r'InDevelopment/ManualUpdates/0.utf', r'Beato/script-full.zip'),
+        ], as_zip=True)
+
+        # Umineko Question Voice Only Patch
+        copy_files_from_repo(r'https://github.com/07th-mod/umineko-question.git', 'voice_only', web_folder, [
+            (r'InDevelopment/ManualUpdates/0.utf', r'Beato/script-voice-only.zip'),
+        ], as_zip=True)
+    elif which_game == 'answer':
+        await channel.send("Umineko Answer Deployment Started...")
+        # Umineko Answer Full and Voice Only Patch
+        copy_files_from_repo(r'https://github.com/07th-mod/umineko-answer.git', 'master', web_folder, [
+            (r'0.utf', r'Bern/script-full.zip'),
+            (r'voices-only/0.utf', r'Bern/script-voice-only.zip'),
+        ], as_zip=True)
+
+        # Umineko Answer ADV Mode Patch
+        copy_files_from_repo(r'https://github.com/07th-mod/umineko-answer.git', 'adv_mode', web_folder, [
+            (r'0.utf', r'Bern/script-adv-mode.zip'),
+        ], as_zip=True)
+    else:
+        notify_failure_and_exit("Unknown game provided")
+        await channel.send(f"Unknown game provided")
+
+    print("Deployment was successful!")
+    await channel.send("Deployment was successful!")
+
+class DummyChannel:
+    async def send(self, message):
+        print(message)
 
 # Try to lock the lock file - exit on failure
 if not sys.platform.startswith('win32'):
@@ -129,31 +136,27 @@ if not sys.platform.startswith('win32'):
 
     lockElseExit(fp)
 
-if which_game == 'question':
-    notify_by_discord("Umineko Question Deployment Started...")
-    # Umineko Question 1080p Patch
-    copy_files_from_repo(r'https://github.com/07th-mod/umineko-question.git', 'master', web_folder, [
-        (r'InDevelopment/ManualUpdates/0.utf', r'Beato/script-full.zip'),
-    ], as_zip=True)
+print("Logging into discord...")
+try:
+    import discord
 
-    # Umineko Question Voice Only Patch
-    copy_files_from_repo(r'https://github.com/07th-mod/umineko-question.git', 'voice_only', web_folder, [
-        (r'InDevelopment/ManualUpdates/0.utf', r'Beato/script-voice-only.zip'),
-    ], as_zip=True)
-elif which_game == 'answer':
-    notify_by_discord("Umineko Answer Deployment Started...")
-    # Umineko Answer Full and Voice Only Patch
-    copy_files_from_repo(r'https://github.com/07th-mod/umineko-answer.git', 'master', web_folder, [
-        (r'0.utf', r'Bern/script-full.zip'),
-        (r'voices-only/0.utf', r'Bern/script-voice-only.zip'),
-    ], as_zip=True)
+    client = discord.Client()
 
-    # Umineko Answer ADV Mode Patch
-    copy_files_from_repo(r'https://github.com/07th-mod/umineko-answer.git', 'adv_mode', web_folder, [
-        (r'0.utf', r'Bern/script-adv-mode.zip'),
-    ], as_zip=True)
-else:
-    notify_failure_and_exit("Unknown game provided")
+    @client.event
+    async def on_ready():
+        print('We have logged in as {0.user}'.format(client))
 
-print("Deployment was successful!")
-notify_by_discord("Deployment was successful!")
+        channel = client.get_channel(idChannelBotSpam)
+        if channel is not None:
+            # send notification
+            await do_deployment(channel)
+        else:
+            print("discord bot failed to get channel")
+
+        # logout
+        await client.logout()
+
+    client.run(pathlib.Path(discord_token_path).read_text().strip())
+except Exception as e:
+    print(f"Failed - trying again without discord")
+    asyncio.run(do_deployment(DummyChannel()))
