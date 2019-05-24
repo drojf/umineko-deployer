@@ -5,7 +5,37 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import pathlib
 from typing import Tuple, List
+
+idChannelBotSpam = 557048243696042055
+discord_token_path = 'token.token'
+
+# TODO: bot needs to login for each message sent - should only login once, then send messages on same connection.
+def notify_by_discord(message_to_send):
+    try:
+        import discord
+
+        client = discord.Client()
+
+        @client.event
+        async def on_ready():
+            print('We have logged in as {0.user}'.format(client))
+
+            channel = client.get_channel(idChannelBotSpam)
+            if channel is not None:
+                # send notification
+                await channel.send(message_to_send)
+            else:
+                print("discord bot failed to get channel")
+
+            # logout
+            await client.logout()
+
+        client.run(pathlib.Path(discord_token_path).read_text().strip())
+    except Exception as e:
+        print(f"Failed to send bot message: {e}")
+
 
 def lockElseExit(fp):
     import fcntl
@@ -13,11 +43,12 @@ def lockElseExit(fp):
         fcntl.lockf(fp, fcntl.LOCK_EX | fcntl.LOCK_NB)
         print("Succesfully obtained lock")
     except IOError:
-        print("Can't run script - another instance is running!")
-        sys.exit(1)
+        notify_failure_and_exit("Can't run script - another instance is running!")
+
 
 def seven_zip(input_path, output_filename):
     subprocess.call(["7z", "a", output_filename, input_path])
+
 
 def copy_files_from_repo(repo_url: str, branch: str, web_root: str, repo_target_path_pairs: List[Tuple[str, str]], as_zip):
     """
@@ -75,13 +106,14 @@ def copy_files_from_repo(repo_url: str, branch: str, web_root: str, repo_target_
             raise permission_error
 
 
-def error_exit():
-    print("ERROR: need at least 1 argument: 'question' or 'answer' to determine which repo to update. Optional second argument is web root.")
+def notify_failure_and_exit(message):
+    notify_by_discord(f"Task Failed!: {message}")
+    print(message)
     exit(-1)
 
 
 if len(sys.argv) < 2:
-    error_exit()
+    notify_failure_and_exit("ERROR: need at least 1 argument: 'question' or 'answer' to determine which repo to update. Optional second argument is web root.")
 
 # 'question' or 'answer'
 which_game = sys.argv[1]
@@ -98,6 +130,7 @@ if not sys.platform.startswith('win32'):
     lockElseExit(fp)
 
 if which_game == 'question':
+    notify_by_discord("Umineko Question Deployment Started...")
     # Umineko Question 1080p Patch
     copy_files_from_repo(r'https://github.com/07th-mod/umineko-question.git', 'master', web_folder, [
         (r'InDevelopment/ManualUpdates/0.utf', r'Beato/script-full.zip'),
@@ -108,6 +141,7 @@ if which_game == 'question':
         (r'InDevelopment/ManualUpdates/0.utf', r'Beato/script-voice-only.zip'),
     ], as_zip=True)
 elif which_game == 'answer':
+    notify_by_discord("Umineko Answer Deployment Started...")
     # Umineko Answer Full and Voice Only Patch
     copy_files_from_repo(r'https://github.com/07th-mod/umineko-answer.git', 'master', web_folder, [
         (r'0.utf', r'Bern/script-full.zip'),
@@ -119,6 +153,7 @@ elif which_game == 'answer':
         (r'0.utf', r'Bern/script-adv-mode.zip'),
     ], as_zip=True)
 else:
-    error_exit()
+    notify_failure_and_exit("Unknown game provided")
 
 print("Deployment was successful!")
+notify_by_discord("Deployment was successful!")
