@@ -23,7 +23,7 @@ def seven_zip(input_path, output_filename):
     subprocess.call(["7z", "a", output_filename, input_path])
 
 
-def copy_files_from_repo(repo_url: str, branch: str, web_root: str, repo_target_path_pairs: List[Tuple[str, str]], as_zip):
+def copy_files_from_repo(repo_url: str, branch: str, web_root: str, repo_target_path_pairs: List[Tuple[str, str, str]], as_zip):
     """
     does `git clone -n --depth=1 REPO_URL`
     For each (repo_path, target_path) pair
@@ -45,18 +45,25 @@ def copy_files_from_repo(repo_url: str, branch: str, web_root: str, repo_target_
             # git clone repo to specified folder. give a unique name to avoid conflicting with other files
             subprocess.call(['git', 'clone', '-n', '--depth=1', f'--branch={branch}', repo_url, repo_clone_path])
 
-            for file_in_repo_path, rel_target_path in repo_target_path_pairs:
+            for file_in_repo_path, new_file_name, rel_target_path in repo_target_path_pairs:
                 # checkout all the repo paths
                 subprocess.call(['git', 'checkout', 'HEAD', file_in_repo_path], cwd=repo_clone_path)
 
                 # calculate the correct repo path dep on if 'as_zip' is enabled
                 original_source_path = os.path.join(repo_clone_path, file_in_repo_path)
-                absolute_source_path = original_source_path + '.zip' if as_zip else ''
+
+                # rename the file
+                path_after_renaming = os.path.join(os.path.dirname(original_source_path), new_file_name)
+                print(f'Renaming path {original_source_path} to {path_after_renaming}')
+                shutil.move(original_source_path, path_after_renaming)
+
+                # calculate temporary zip file path (or just file path if not zipping)
+                absolute_source_path = path_after_renaming + '.zip' if as_zip else ''
 
                 #  zip each path if necessary
                 if as_zip:
-                    print(f'Zipping {original_source_path} -> {absolute_source_path}')
-                    seven_zip(original_source_path, absolute_source_path)
+                    print(f'Zipping {path_after_renaming} -> {absolute_source_path}')
+                    seven_zip(path_after_renaming, absolute_source_path)
 
                 # delete the target_path
                 target_path = os.path.join(web_root, rel_target_path)
@@ -101,12 +108,12 @@ async def do_deployment(channel):
         await channel.send("Umineko Question Deployment Started...")
         # Umineko Question 1080p Patch
         copy_files_from_repo(r'https://github.com/07th-mod/umineko-question.git', 'master', web_folder, [
-            (r'InDevelopment/ManualUpdates/0.utf', r'Beato/script-full.zip'),
+            (r'InDevelopment/ManualUpdates/0.utf', '0.u', r'Beato/script-full.zip'),
         ], as_zip=True)
 
         # Umineko Question Voice Only Patch
         copy_files_from_repo(r'https://github.com/07th-mod/umineko-question.git', 'voice_only', web_folder, [
-            (r'InDevelopment/ManualUpdates/0.utf', r'Beato/script-voice-only.zip'),
+            (r'InDevelopment/ManualUpdates/0.utf', '0.u', r'Beato/script-voice-only.zip'),
         ], as_zip=True)
     elif which_game == 'answer':
         # Try to lock the lock file - exit on failure
@@ -119,13 +126,13 @@ async def do_deployment(channel):
         await channel.send("Umineko Answer Deployment Started...")
         # Umineko Answer Full and Voice Only Patch
         copy_files_from_repo(r'https://github.com/07th-mod/umineko-answer.git', 'master', web_folder, [
-            (r'0.utf', r'Bern/script-full.zip'),
-            (r'voices-only/0.utf', r'Bern/script-voice-only.zip'),
+            (r'0.utf', '0.u', r'Bern/script-full.zip'),
+            (r'voices-only/0.utf', '0.u', r'Bern/script-voice-only.zip'),
         ], as_zip=True)
 
         # Umineko Answer ADV Mode Patch
         copy_files_from_repo(r'https://github.com/07th-mod/umineko-answer.git', 'adv_mode', web_folder, [
-            (r'0.utf', r'Bern/script-adv-mode.zip'),
+            (r'0.utf', '0.u', r'Bern/script-adv-mode.zip'),
         ], as_zip=True)
     else:
         await channel.send(f"Unknown game provided")
