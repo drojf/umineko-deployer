@@ -17,7 +17,7 @@ def lockElseExit(fp):
         fcntl.lockf(fp, fcntl.LOCK_EX | fcntl.LOCK_NB)
         print("Succesfully obtained lock")
     except IOError:
-        notify_failure_and_exit("Can't run script - another instance is running!")
+        raise Exception("Can't run script - another instance is running!")
 
 
 def seven_zip(input_path, output_filename):
@@ -79,14 +79,10 @@ def copy_files_from_repo(repo_url: str, branch: str, web_root: str, repo_target_
         else:
             raise permission_error
 
-
-def notify_failure_and_exit(message):
-    print(message)
-    exit(-1)
-
 async def do_deployment(channel):
     if len(sys.argv) < 2:
-        notify_failure_and_exit("ERROR: need at least 1 argument: 'question' or 'answer' to determine which repo to update. Optional second argument is web root.")
+        await channel.send(f"Invalid arguments provided!")
+        raise Exception("ERROR: need at least 1 argument: 'question' or 'answer' to determine which repo to update. Optional second argument is web root.")
 
     # 'question' or 'answer'
     which_game = sys.argv[1]
@@ -119,8 +115,8 @@ async def do_deployment(channel):
             (r'0.utf', r'Bern/script-adv-mode.zip'),
         ], as_zip=True)
     else:
-        notify_failure_and_exit("Unknown game provided")
         await channel.send(f"Unknown game provided")
+        raise Exception("Unknown game provided")
 
     print("Deployment was successful!")
     await channel.send("Deployment was successful!")
@@ -137,27 +133,33 @@ if not sys.platform.startswith('win32'):
     lockElseExit(fp)
 
 print("Logging into discord...")
+
 try:
     import discord
-
     client = discord.Client()
 
     @client.event
     async def on_ready():
-        print('We have logged in as {0.user}'.format(client))
+        try:
+            print('We have logged in as {0.user}'.format(client))
 
-        channel = client.get_channel(idChannelBotSpam)
-        if channel is not None:
-            # send notification
-            await do_deployment(channel)
-        else:
-            print("discord bot failed to get channel")
+            channel = client.get_channel(idChannelBotSpam)
+            if channel is not None:
+                await do_deployment(channel)
+            else:
+                print("discord bot failed to get channel")
+        except Exception as e:
+            print("Failed due to exception", e)
+            raise e
+        finally:
+            await client.logout()
 
-        # logout
-        await client.logout()
 
     client.run(pathlib.Path(discord_token_path).read_text().strip())
-except Exception as e:
+except:
+    # TODO: this will only run if there's an error in the discord.Client() call or if discord is missing.
+    # TODO: should probably use message passing or similar to notify discord client of messages rather than this way.
     print(f"Failed - trying again without discord")
     loop = asyncio.get_event_loop()
     result = loop.run_until_complete(do_deployment(DummyChannel()))
+
