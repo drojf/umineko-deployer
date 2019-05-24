@@ -5,7 +5,6 @@ import shutil
 import subprocess
 import sys
 import tempfile
-import zipfile
 from typing import Tuple, List
 
 def lockElseExit(fp):
@@ -77,7 +76,7 @@ def copy_files_from_repo(repo_url: str, branch: str, web_root: str, repo_target_
 
 
 def error_exit():
-    print("ERROR: need at least 2 arguments. First argument is web folder root, second argument is 'question' or 'answer' to determine which repo to update")
+    print("ERROR: need at least 1 argument: 'question' or 'answer' to determine which repo to update. Optional second argument is web root.")
     exit(-1)
 
 
