@@ -159,4 +159,5 @@ try:
     client.run(pathlib.Path(discord_token_path).read_text().strip())
 except Exception as e:
     print(f"Failed - trying again without discord")
-    asyncio.run(do_deployment(DummyChannel()))
+    loop = asyncio.get_event_loop()
+    result = loop.run_until_complete(do_deployment(DummyChannel()))
