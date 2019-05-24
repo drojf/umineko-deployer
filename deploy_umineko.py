@@ -19,7 +19,6 @@ def lockElseExit(fp):
     except IOError:
         raise Exception("Can't run script - another instance is running!")
 
-
 def seven_zip(input_path, output_filename):
     subprocess.call(["7z", "a", output_filename, input_path])
 
@@ -92,6 +91,13 @@ async def do_deployment(channel):
     print(f"Web folder: [{web_folder}] Game: [{which_game}]")
 
     if which_game == 'question':
+        # Try to lock the lock file - exit on failure
+        if not sys.platform.startswith('win32'):
+            pid_file = '/tmp/drojf_deploy_umineko_question_instance.lock'
+            fp = open(pid_file, 'w')
+
+            lockElseExit(fp)
+
         await channel.send("Umineko Question Deployment Started...")
         # Umineko Question 1080p Patch
         copy_files_from_repo(r'https://github.com/07th-mod/umineko-question.git', 'master', web_folder, [
@@ -103,6 +109,13 @@ async def do_deployment(channel):
             (r'InDevelopment/ManualUpdates/0.utf', r'Beato/script-voice-only.zip'),
         ], as_zip=True)
     elif which_game == 'answer':
+        # Try to lock the lock file - exit on failure
+        if not sys.platform.startswith('win32'):
+            pid_file = '/tmp/drojf_deploy_umineko_answer_instance.lock'
+            fp = open(pid_file, 'w')
+
+            lockElseExit(fp)
+
         await channel.send("Umineko Answer Deployment Started...")
         # Umineko Answer Full and Voice Only Patch
         copy_files_from_repo(r'https://github.com/07th-mod/umineko-answer.git', 'master', web_folder, [
@@ -124,13 +137,6 @@ async def do_deployment(channel):
 class DummyChannel:
     async def send(self, message):
         print(message)
-
-# Try to lock the lock file - exit on failure
-if not sys.platform.startswith('win32'):
-    pid_file = '/tmp/drojf_deploy_umineko_instance.lock'
-    fp = open(pid_file, 'w')
-
-    lockElseExit(fp)
 
 print("Logging into discord...")
 
