@@ -6,6 +6,7 @@ import subprocess
 import sys
 import tempfile
 import pathlib
+import datetime
 from typing import Tuple, List
 
 idChannelBotSpam = 557048243696042055
@@ -89,6 +90,10 @@ async def do_deployment(channel):
     if len(sys.argv) < 2:
         await channel.send(f"Invalid arguments provided!")
         raise Exception("ERROR: need at least 1 argument: 'question' or 'answer' to determine which repo to update. Optional second argument is web root.")
+
+    await channel.send(f"Build started on [{datetime.datetime.now()}]")
+    await channel.send(f"Waiting 30 seconds for other push events...")
+    await asyncio.sleep(30)
 
     # 'question' or 'answer'
     which_game = sys.argv[1]
