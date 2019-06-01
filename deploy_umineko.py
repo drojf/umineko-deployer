@@ -9,7 +9,7 @@ import pathlib
 import datetime
 from typing import Tuple, List
 
-idChannelBotSpam = 557048243696042055
+idChannelUminekoDev = 384427969520599043
 discord_token_path = 'token.token'
 
 def lockElseExit(fp):
@@ -161,7 +161,7 @@ try:
         try:
             print('We have logged in as {0.user}'.format(client))
 
-            channel = client.get_channel(idChannelBotSpam)
+            channel = client.get_channel(idChannelUminekoDev)
             if channel is not None:
                 await do_deployment(channel)
             else:
