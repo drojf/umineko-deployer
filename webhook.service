@@ -1,0 +1,14 @@
+[Unit]
+Description=Small server for creating HTTP endpoints (hooks)
+Documentation=https://github.com/adnanh/webhook/
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=drojf
+WorkingDirectory=/home/drojf/umineko-deployer
+ExecStart=/usr/bin/webhook -verbose -nopanic -hooks /etc/webhook.conf
+
+[Install]
+WantedBy=multi-user.target
