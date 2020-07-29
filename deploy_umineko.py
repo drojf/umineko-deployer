@@ -7,6 +7,7 @@ import sys
 import tempfile
 import pathlib
 import datetime
+import traceback
 from typing import Tuple, List
 
 idChannelUminekoDev = 384427969520599043
@@ -174,7 +175,9 @@ try:
 
 
     client.run(pathlib.Path(discord_token_path).read_text().strip())
-except:
+except Exception as e:
+    print("Discord init failed due to: ", e)
+    traceback.print_exc()
     # TODO: this will only run if there's an error in the discord.Client() call or if discord is missing.
     # TODO: should probably use message passing or similar to notify discord client of messages rather than this way.
     print(f"Failed - trying again without discord")
